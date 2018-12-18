@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.io import wavfile
-from utils import ms2smp, compute_stride, win_taper, build_linear_interp_table
+from utils import ms2smp, compute_stride, win_taper, dft_rescale
 
 """
 Pitch shifting with granular synthesis for shift factors <=1.0
@@ -9,8 +9,8 @@ Pitch shifting with granular synthesis for shift factors <=1.0
 """ User selected parameters """
 input_wav = "speech.wav"
 grain_len = 20      # in milliseconds
-grain_over = 0.3   # grain overlap (0,1)
-shift_factor = 0.7 # <= 1.0
+grain_over = 0.99   # grain overlap (0,1)
+shift_factor = 0.7
 
 # open WAV file
 samp_freq, signal = wavfile.read(input_wav)
@@ -37,7 +37,7 @@ def init():
     # lookup table for linear interpolation
     global SAMP_VALS
     global AMP_VALS
-    SAMP_VALS, AMP_VALS = build_linear_interp_table(GRAIN_LEN_SAMP, shift_factor, data_type)
+    #SAMP_VALS, AMP_VALS = build_linear_interp_table(GRAIN_LEN_SAMP, shift_factor, data_type)
 
     # create arrays to pass between buffers (state variables)
     global grain
@@ -63,9 +63,10 @@ def process(input_buffer, output_buffer, buffer_len):
         else:
             x_concat[n] = input_buffer[n-int(OVERLAP_LEN)]
 
-    # resample
-    for n in range(int(GRAIN_LEN_SAMP)):
-        grain[n] = float(AMP_VALS[n]/MAX_VAL)*x_concat[int(SAMP_VALS[n])] + (1-float(AMP_VALS[n]/MAX_VAL))*x_concat[int(SAMP_VALS[n])+1]
+    # rescale
+    #for n in range(int(GRAIN_LEN_SAMP)):
+        #grain[n] = float(AMP_VALS[n]/MAX_VAL)*x_concat[int(SAMP_VALS[n])] + (1-float(AMP_VALS[n]/MAX_VAL))*x_concat[int(SAMP_VALS[n])+1]
+    grain = dft_rescale(x_concat,shift_factor)
 
     # apply window
     for n in range(int(GRAIN_LEN_SAMP)):
@@ -104,6 +105,6 @@ for k in range(n_buffers):
     signal_proc[start_idx:end_idx] = output_buffer
 
 # write to WAV
-file_name = "output_gran_synth.wav"
+file_name = "output_pitch_synth_low.wav"
 print("Result written to: %s" % file_name)
 wavfile.write(file_name, samp_freq, signal_proc)
